@@ -109,8 +109,8 @@ class MenuController: NSObject, NSMenuDelegate {
     }
 
     func setStatusOff() {
-        v2rayStatusItem.title = "V2ray-Core: Off"
-        toggleV2rayItem.title = "Turn V2ray-Core On"
+        v2rayStatusItem.title = "v2ray-core: Off" + ("  (v" + appVersion + ")")
+        toggleV2rayItem.title = "Turn v2ray-core On"
 
         if let button = statusItem.button {
             button.image = NSImage(named: NSImage.Name("IconOff"))
@@ -120,12 +120,25 @@ class MenuController: NSObject, NSMenuDelegate {
         UserDefaults.setBool(forKey: .v2rayTurnOn, value: false)
     }
 
-    func setStatusOn() {
-        v2rayStatusItem.title = "V2ray-Core: On"
-        toggleV2rayItem.title = "Turn V2ray-Core Off"
+    func setStatusOn(runMode: RunMode) {
+        v2rayStatusItem.title = "v2ray-core: On" + ("  (v" + appVersion + ")")
+        toggleV2rayItem.title = "Turn v2ray-core Off"
 
+        var iconName = "IconOn"
+        
+        switch runMode {
+        case .global:
+            iconName = "IconOnG"
+        case .manual:
+            iconName = "IconOnM"
+        case .pac:
+            iconName = "IconOnP"
+        default:
+            break
+        }
+        
         if let button = statusItem.button {
-            button.image = NSImage(named: NSImage.Name("IconOn"))
+            button.image = NSImage(named: NSImage.Name(iconName))
         }
 
         // set on
@@ -156,18 +169,19 @@ class MenuController: NSObject, NSMenuDelegate {
             setStatusOff()
             return
         }
-
+        
+        let runMode = RunMode(rawValue: UserDefaults.get(forKey: .runMode) ?? "manual") ?? .manual
+        
         // create json file
         V2rayConfig.createJsonFile(item: v2ray)
 
         // set status
-        setStatusOn()
+        setStatusOn(runMode: runMode)
 
         // launch
         V2rayLaunch.Start()
         NSLog("start v2ray-core done.")
 
-        let runMode = RunMode(rawValue: UserDefaults.get(forKey: .runMode) ?? "manual") ?? .manual
         // switch run mode
         self.switchRunMode(runMode: runMode)
     }
@@ -234,12 +248,11 @@ class MenuController: NSObject, NSMenuDelegate {
             configWindow = ConfigWindowController()
         }
 
-        // show window
+        self.showDock(state: true)
+//        // show window
         configWindow.showWindow(nil)
         configWindow.window?.makeKeyAndOrderFront(self)
-        // show dock icon
-        NSApp.setActivationPolicy(.regular)
-        // bring to front
+//        // bring to front
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -252,18 +265,25 @@ class MenuController: NSObject, NSMenuDelegate {
         }
 
         // config window title is "V2rayU"
-        if object.title == "V2rayU" && self.closedByConfigWindow == false {
-            self.hideDock()
+        if object.title == "V2rayU" {
+            _ = self.showDock(state: false)
         }
     }
 
-    func hideDock() {
-        // hide dock icon and close all opened windows
-        NSApp.setActivationPolicy(.accessory)
-        // close by config window
-        self.closedByConfigWindow = true
-        // close
-        configWindow.close()
+    func showDock(state: Bool) -> Bool {
+        // Get transform state.
+        var transformState: ProcessApplicationTransformState
+        if state {
+            transformState = ProcessApplicationTransformState(kProcessTransformToForegroundApplication)
+        } else {
+            transformState = ProcessApplicationTransformState(kProcessTransformToUIElementApplication)
+        }
+
+        // Show / hide dock icon.
+        var psn = ProcessSerialNumber(highLongOfPSN: 0, lowLongOfPSN: UInt32(kCurrentProcess))
+        let transformStatus: OSStatus = TransformProcessType(&psn, transformState)
+
+        return transformStatus == 0
     }
 
     @IBAction func goHelp(_ sender: NSMenuItem) {
@@ -346,7 +366,10 @@ class MenuController: NSObject, NSMenuDelegate {
             sockPort = cfg.socksPort
             httpPort = cfg.httpPort
         }
-
+        
+        // set icon
+        setStatusOn(runMode: runMode)
+        
         // manual mode
         if lastRunMode == RunMode.manual.rawValue {
             // backup first

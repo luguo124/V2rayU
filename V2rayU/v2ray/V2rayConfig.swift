@@ -774,7 +774,6 @@ class V2rayConfig: NSObject {
 
                 settings.udp = jsonParams["settings"]["udp"].boolValue
                 settings.ip = jsonParams["settings"]["ip"].stringValue
-                settings.timeout = jsonParams["settings"]["timeout"].intValue
                 settings.userLevel = jsonParams["settings"]["userLevel"].intValue
 
                 self.enableUdp = jsonParams["settings"]["udp"].boolValue

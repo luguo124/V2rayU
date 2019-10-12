@@ -19,7 +19,7 @@ let launchAgentDirPath = NSHomeDirectory() + LAUNCH_AGENT_DIR
 let launchAgentPlistFile = launchAgentDirPath + LAUNCH_AGENT_PLIST
 let launchHttpPlistFile = launchAgentDirPath + LAUNCH_HTTP_PLIST
 let AppResourcesPath = Bundle.main.bundlePath + "/Contents/Resources"
-let AppMacOsPath = Bundle.main.bundlePath + "/Contents/Macos"
+let AppMacOsPath = Bundle.main.bundlePath + "/Contents/MacOS"
 let v2rayCorePath = AppResourcesPath + "/v2ray-core"
 let v2rayCoreFile = v2rayCorePath + "/v2ray"
 var HttpServerPacPort = UserDefaults.get(forKey: .localPacPort) ?? "1085"
@@ -164,7 +164,11 @@ class V2rayLaunch: NSObject {
     // start http server for pac
     static func startHttpServer() {
         if webServer.isRunning {
-           webServer.stop()
+            do {
+                try webServer.stop()
+            } catch let error {
+                print("webServer.stop:\(error)")
+            }
         }
 
         _ = GeneratePACFile()
@@ -173,11 +177,13 @@ class V2rayLaunch: NSObject {
 
         webServer.addGETHandler(forBasePath: "/", directoryPath: AppResourcesPath, indexFilename: nil, cacheAge: 3600, allowRangeRequests: true)
 
-//        webServer.start(options: <#T##[AnyHashable : Any]?#>)
-        // Start
-        try!  webServer.start(options: [
-            "Port": UInt(pacPort) ?? 1085,
-            "BindToLocalhost": true
-            ] );
+        do {
+            try webServer.start(options: [
+                "Port": UInt(pacPort) ?? 1085,
+                "BindToLocalhost": true
+            ]);
+        } catch let error {
+            print("webServer.start:\(error)")
+        }
     }
 }
