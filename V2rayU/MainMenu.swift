@@ -306,7 +306,7 @@ class MenuController: NSObject, NSMenuDelegate {
             }
 
             let menuItem: NSMenuItem = NSMenuItem()
-            menuItem.title = item.remark
+            menuItem.title = String(item.speed) + "ms\t    " + item.remark
             menuItem.action = #selector(self.switchServer(_:))
             menuItem.representedObject = item
             menuItem.target = self
@@ -456,25 +456,51 @@ class MenuController: NSObject, NSMenuDelegate {
         }
     }
 
+    @IBAction func pingSpeed(_ sender: NSMenuItem) {
+        let itemList = V2rayServer.list()
+        if itemList.count == 0 {
+            return
+        }
+
+        for item in itemList {
+            if !item.isValid {
+                continue
+            }
+            
+            let ping = Ping(item: item)
+            ping.pingProxySpeed()
+        }
+
+        V2rayServer.saveItemList()
+        // refresh server
+        self.showServers()
+    }
+
     func importUri(url: String) {
-        let uri = url.trimmingCharacters(in: .whitespaces)
+        let urls = url.split(separator: "\n")
+        
+        for url in urls {
+            let uri = url.trimmingCharacters(in: .whitespaces)
 
-        if uri.count == 0 {
-            noticeTip(title: "import server fail", subtitle: "", informativeText: "import error: uri not found")
-            return
-        }
+            if uri.count == 0 {
+                noticeTip(title: "import server fail", subtitle: "", informativeText: "import error: uri not found")
+                continue
+            }
 
-        if URL(string: uri) == nil {
+            // ss://YWVzLTI1Ni1jZmI6ZUlXMERuazY5NDU0ZTZuU3d1c3B2OURtUzIwMXRRMERAMTcyLjEwNS43MS44Mjo4MDk5#翻墙党325.06美国 类型这种含中文的格式不是标准的URL格式
+//            if URL(string: uri) == nil {
+            if !ImportUri.supportProtocol(uri: uri) {
+                noticeTip(title: "import server fail", subtitle: "", informativeText: "no found ss:// , ssr:// or vmess://")
+                continue
+            }
+
+            if let importUri = ImportUri.importUri(uri: uri) {
+                self.saveServer(importUri: importUri)
+                continue
+            }
+
             noticeTip(title: "import server fail", subtitle: "", informativeText: "no found ss:// , ssr:// or vmess://")
-            return
         }
-
-        if let importUri = ImportUri.importUri(uri: uri) {
-            self.saveServer(importUri: importUri)
-            return
-        }
-
-        noticeTip(title: "import server fail", subtitle: "", informativeText: "no found ss:// , ssr:// or vmess://")
     }
 
     func saveServer(importUri: ImportUri) {
