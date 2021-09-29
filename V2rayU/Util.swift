@@ -12,7 +12,7 @@ extension UserDefaults {
 
     enum KEY: String {
         // v2ray-core version
-        case v2rayCoreVersion
+        case xRayCoreVersion
         // v2ray server item list
         case v2rayServerList
         // v2ray subscribe item list
@@ -23,16 +23,25 @@ extension UserDefaults {
         case v2rayTurnOn
         // v2ray-core log level
         case v2rayLogLevel
+        // v2ray dns json txt
+        case v2rayDnsJson
+
         // auth check version
         case autoCheckVersion
         // auto launch after login
         case autoLaunch
         // auto clear logs
         case autoClearLog
+        // auto update servers
+        case autoUpdateServers
+        // auto select Fastest server
+        case autoSelectFastestServer
         // pac|manual|global
         case runMode
         // use rules
         case userRules
+        // gfw pac file content
+        case gfwPacFileContent
         // gfw pac list url
         case gfwPacListUrl
 
@@ -51,10 +60,23 @@ extension UserDefaults {
         case enableUdp
         // enable mux
         case enableMux
+        // enable Sniffing
+        case enableSniffing
         // mux Concurrent
         case muxConcurrent
         // pacPort
         case localPacPort
+
+        // for routing rule
+        case routingDomainStrategy
+        case routingRule
+        case routingProxyDomains
+        case routingProxyIps
+        case routingDirectDomains
+        case routingDirectIps
+        case routingBlockDomains
+        case routingBlockIps
+        case Exception
     }
 
     static func setBool(forKey key: KEY, value: Bool) {
@@ -130,8 +152,7 @@ extension String {
 
     //将原始的url编码为合法的url
     func urlEncoded() -> String {
-        let encodeUrlString = self.addingPercentEncoding(withAllowedCharacters:
-        .urlQueryAllowed)
+        let encodeUrlString = self.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
         return encodeUrlString ?? self
     }
 
@@ -228,46 +249,23 @@ extension FileManager {
     }
 }
 
-func checkTcpPortForListen(port: in_port_t) -> (Bool, descr: String) {
-
-    let socketFileDescriptor = socket(AF_INET, SOCK_STREAM, 0)
-    if socketFileDescriptor == -1 {
-        return (false, "SocketCreationFailed, \(descriptionOfLastError())")
-    }
-
-    var addr = sockaddr_in()
-    let sizeOfSockkAddr = MemoryLayout<sockaddr_in>.size
-    addr.sin_len = __uint8_t(sizeOfSockkAddr)
-    addr.sin_family = sa_family_t(AF_INET)
-    addr.sin_port = Int(OSHostByteOrder()) == OSLittleEndian ? _OSSwapInt16(port) : port
-    addr.sin_addr = in_addr(s_addr: inet_addr("0.0.0.0"))
-    addr.sin_zero = (0, 0, 0, 0, 0, 0, 0, 0)
-    var bind_addr = sockaddr()
-    memcpy(&bind_addr, &addr, Int(sizeOfSockkAddr))
-
-    if Darwin.bind(socketFileDescriptor, &bind_addr, socklen_t(sizeOfSockkAddr)) == -1 {
-        let details = descriptionOfLastError()
-        releaseTcpPort(socket: socketFileDescriptor)
-        return (false, "\(port), BindFailed, \(details)")
-    }
-    if listen(socketFileDescriptor, SOMAXCONN ) == -1 {
-        let details = descriptionOfLastError()
-        releaseTcpPort(socket: socketFileDescriptor)
-        return (false, "\(port), ListenFailed, \(details)")
-    }
-    releaseTcpPort(socket: socketFileDescriptor)
-    return (true, "\(port) is free for use")
-}
-
-func releaseTcpPort(socket: Int32) {
-    Darwin.shutdown(socket, SHUT_RDWR)
-    close(socket)
-}
-
-func descriptionOfLastError() -> String {
-    return String.init(cString: (UnsafePointer(strerror(errno))))
-}
-
 func getAppVersion() -> String {
     return "\(Bundle.main.infoDictionary!["CFBundleShortVersionString"] ?? "")"
+}
+
+extension URL {
+    func queryParams() -> [String: Any] {
+        var dict = [String: Any]()
+
+        if let components = URLComponents(url: self, resolvingAgainstBaseURL: false) {
+            if let queryItems = components.queryItems {
+                for item in queryItems {
+                    dict[item.name] = item.value!
+                }
+            }
+            return dict
+        } else {
+            return [:]
+        }
+    }
 }
